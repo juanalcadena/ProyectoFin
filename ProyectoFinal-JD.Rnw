@@ -1,0 +1,211 @@
+\documentclass{article}
+
+%%%%
+\usepackage[utf8]{inputenc}
+\usepackage{longtable}
+\usepackage{authblk}
+\usepackage{adjustbox}
+
+\usepackage{natbib}
+
+
+
+\title{INDICE DE DESARROLLO (IDH) HUMANO POR DEPARTAMENTOS EN COLOMBIA}
+% autores
+\author[1]{\normalsize Juan Daniel Alvarez}
+
+
+
+\affil[1]{\small  Departamento de Ingenieria Industrial,Universidad de los Andes\\
+\texttt{{jd.alvarez17}@uniandes.edu.co}}
+
+
+\date{29 de Junio de 2018}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+
+\maketitle
+
+
+\begin{abstract}
+En este articulo se presentan los resultados de los diferentes analisis realizados a los valores de los indices de desarrollo humano que presentan los diferentes departamentos de Colombia, entre dichos analisis se incluyen exploracion univariada, bivariada, y espacial, ademas de una regresi�n de los datos e histogramas de frecuencia de dichos valores. Utilizando los datos mencionados anteriormente y su respectivo analisis se determino cuales departamento presentan un indice de desarrollo humano alto, medio o bajo. Con el fin de entender un poco mas en cuales departamentos se presenta una situacion problematicoen relacion con el IDH en Colombia, con el fin de plantear soluciones al respecto. Adicinalmente, este trabajo se ha hecho bajo la filosofia del trabajo replicable y es un trabajo de exploracion y modelamineto de indices utilizando latex.
+
+\end{abstract}
+
+\section*{Introducción}
+
+En este articulo se presentan los resultados a una investigacion realizada sobre el indice de desarrollo humano en Colombia. Colombia es un pais soberano situado en la region noroccidental de America del Sur, que se constituye en un estado unitario, social y democratico de derecho cuya forma de gobierno es presidencialista. Es una republica organizada politicamente en 32 departamentos descentralizados y el Distrito capital de Bogota, sede del gobierno nacional. Por otra parte, el Indice de Desarrollo Humano (IDH) se entiende como un indicador sintetico de los logros medios obtenidos en las dimensiones fundamentales del desarrollo humano, a saber, tener una vida larga y saludable, adquirir conocimientos y disfrutar de un nivel de vida digno. El IDH es la media aritmetica de los indices normalizados de cada una de las tres dimensiones.
+
+
+Comencemos viendo que hay en la sección \ref{univariada} en la página \pageref{univariada}.
+
+\clearpage
+
+
+\section{Exploración Univariada}\label{univariada}
+
+En esta sección realizo un analisis estadistico de los datos, obteniendo la siguiente tabla de referencia \ref{stats} para obtener un mejor analisis, en la cual analizamos las variables IDH, Poblacion cabecera y poblacion resto, obteniendo el numero de datos por variables y su mediana.
+
+<<getData, echo=FALSE>>=
+# carga de datos
+filename="colombia.csv"
+colb=read.csv(filename, stringsAsFactors = FALSE)
+@
+
+<<summary, results=tex, echo=FALSE>>=
+library(stargazer)
+vars1 <- colb[, c(1,3,4)]
+
+stargazer(vars1,title = "Medidas estadisticas", label = "stats",summary.stat = c("n", "median"))
+@
+
+En esta seccion realizo un analisis de las variables de interes de los datos, obteniendo los siguientes histogramas de referencia.
+
+\begin{figure}[h]
+<<hist1, echo=F,fig=T,width=10,height=8>>=
+par(mfrow=c(2,2))
+hist(colb$IDH,main="Histograma IDH",ylab="Frecuencia", xlab = "IDH",col = "red")
+hist(colb$Poblacion.Cabecera,main="Histograma Poblacion Cabecera",ylab="Frecuencia", xlab = "Pob. Cabecera", col = "red")
+hist(colb$Poblacion.Resto,main="Histograma Poblacion Resto",ylab="Frecuencia", xlab = "Pob. Resto",col = "red")
+@
+\caption{Histogramas}
+\end{figure}
+
+Teniendo en cuenta que los datos poblacionales pueden estar sesgados, se realiza una transformacion en los datos, con el fin de que estos se ajusten a la normalidad, obteniendo los siguientes histogramas.
+\begin{figure}[h]
+<<hist2, echo=F,fig=T,width=10,height=8>>=
+par(mfrow=c(2,2))
+colb$cabeLog=log(colb$Poblacion.Cabecera)
+colb$restoLog=log(colb$Poblacion.Resto)
+
+hist(colb$IDH,main="Histograma IDH",ylab="Frecuencia", xlab = "IDH",col = "red")
+hist(colb$cabeLog,main="Histograma Poblacion Cabecera",ylab="Frecuencia", xlab = "Pob. Cabecera", col = "red")
+hist(colb$restoLog,main="Histograma Poblacion Resto",ylab="Frecuencia", xlab = "Pob. Resto",col = "red")
+@
+\caption{Histogramas normalizados}
+\end{figure}
+\clearpage
+\section{Exploración Bivariada}
+
+En este trabajo estamos interesados en el impacto de la pobacion en el IDH. Veamos las relaciones bivariadas que tiene esta variable con la mencionada anteriormente:
+
+
+<<corrDem, results=tex, echo=FALSE>>=
+explanans=names(colb)[c(7:8)] # usando las logs
+corrDem=cor(colb$IDH,colb[,explanans],
+            use = "na.or.complete")
+stargazer(corrDem, title="Correlación del IDH con las poblaciones",label = "corrDem")
+@
+
+Ahora, pasamos a ver la correlación entre las variables independientes:
+
+<<corrTableX, results=tex, echo=FALSE>>=
+corrTableX=round(cor(colb[,explanans],
+                         use = "na.or.complete"),2)
+corrTableX_copy=corrTableX
+# Hide upper triangle
+
+corrTableX[upper.tri(corrTableX)]<-""
+
+stargazer(corrTableX, title="Correlación entre variables independientes",label = 'corrTableX')
+@
+
+Lo visto en la Tabla \ref{corrTableX} se refuerza claramente en la siguiente figura.
+\begin{figure}[h]
+\begin{adjustbox}{width=15cm,height=6cm}
+<<corrPlot2, echo=FALSE,fig=TRUE>>=
+library(corrplot)
+plot(colb[,explanans])
+@
+\end{adjustbox}
+\caption{Grafico de dispersion}
+\end{figure}
+\clearpage
+
+
+\section{Modelos de Regresión}
+
+Finalmente, vemos los modelos propuestos. Primero sin poblacion resto como independiente, y luego con está. Los resultados se muestran en la Tabla \ref{regresiones} de la página \pageref{regresiones}.
+
+
+<<regresiones, echo=FALSE>>=
+LinRegA = lm(IDH ~ ., data = colb[,c(1,7)])
+LinRegB = lm(IDH ~ ., data = colb[,c(1,7:8)])
+@
+
+<<regresionesPlot,results=tex, echo=false>>=
+stargazer(LinRegA,LinRegB,
+          title = "Modelos de Regresion", 
+          label = "regresiones")
+@
+
+\clearpage
+
+
+\section{Exploración Espacial}
+
+Como acabamos de ver en la Tabla \ref{regresiones} en la página \pageref{regresiones}, si quisieras sintetizar la multidimensionalidad de nuestros indicadores se pueden utilizar los valores de IDH de las variables que tenemos. 
+
+Asi, propongo que calculemos tres conglomerados de departamentos usando toda la información del IDH, de los mismo en Colombia. Este proceso de conglomeracion se puede lograr gracias a los descubrimientos y analisis propuestos por McQueen \cite{macqueen_methods_nodate}. Los tres conglomerados se muestran en la Figura \ref{clustmap}.
+
+<<getMap, echo=FALSE,results=hide>>=
+library(rgdal)
+folder='COL_maps'
+file='COL_adm1.shp'
+mapaFile=file.path(folder,file)
+mapCol <- rgdal::readOGR(mapaFile,stringsAsFactors=F) 
+@
+
+
+<<datosmapa, echo=FALSE, results=HIDE>>=
+sub_colb=colb[,c(1:2,7:8)]
+mapCol_idh=merge(mapCol,sub_colb, by.x='NAME_1', by.y='Departamento',all.x=F)
+nrow(mapCol_idh)
+names(mapCol_idh)
+dimensions=c("NAME_1","IDH","cabeLog","restoLog")
+library(cluster)
+dataCluster=mapCol_idh@data[,c(dimensions)]
+dataCluster[,-1]=scale(dataCluster[,-1])
+resultado=kmeans(dataCluster[,-1],3)
+clusters=as.data.frame(resultado$cluster)
+clusters$NAME_1=dataCluster$NAME_1
+names(clusters)=c('cluster','NAME_1')
+mapCol_idh=merge(mapCol_idh,clusters, by='NAME_1',all.x=F)
+names(mapCol_idh)
+@
+
+\begin{figure}[h]
+<<plotMap1, echo=FALSE, fig=TRUE, results=HIDE>>=
+library(RColorBrewer)
+library(classInt)
+varToPLot=mapCol_idh$cluster
+unique(varToPLot)
+aggregate(mapCol_idh@data[,c(10,11,12)],
+          by=list(mapCol_idh@data$cluster),FUN=mean)
+numberOfClasses = length(unique(varToPLot)) 
+colorForScale='Set2'
+paleta = brewer.pal(numberOfClasses, colorForScale)
+plot(mapCol,col='grey',border=0)
+plot(mapCol_idh, col = paleta[varToPLot],border=F,add=T)
+legend('left', legend = c("LOW","UP","MEDIUM"),
+       fill = paleta, 
+       cex = 0.6, 
+       bty = "n",
+       title="conglomerado")
+
+@
+
+\caption{Departamentos conglomerados segun sus IDH}\label{clustmap}
+\end{figure}
+\clearpage
+
+
+\bibliographystyle{abbrv}
+\renewcommand{\refname}{Bibliografia}
+\bibliography{PFINAL}
+
+
+
+\end{document}
